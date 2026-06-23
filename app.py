@@ -17,6 +17,7 @@ def home():
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
 
+    # Verify webhook
     if request.method == "GET":
         mode = request.args.get("hub.mode")
         token = request.args.get("hub.verify_token")
@@ -24,23 +25,29 @@ def webhook():
 
         if mode == "subscribe" and token == VERIFY_TOKEN:
             return challenge, 200
+
         return "Verification failed", 403
 
+    # Receive messages
     if request.method == "POST":
         data = request.get_json()
-        print(data)
+        print("Incoming data:", data)
 
         try:
             value = data["entry"][0]["changes"][0]["value"]
 
             if "messages" in value:
+
                 sender = value["messages"][0]["from"]
                 text = value["messages"][0]["text"]["body"]
+
+                print("Sender:", sender)
+                print("Message:", text)
 
                 reply = (
                     "Hi 👋\n\n"
                     "Thanks for contacting DataMentorZen 🚀\n\n"
-                    "Please share:\n"
+                    "Before we guide you further, please share:\n\n"
                     "1️⃣ Name\n"
                     "2️⃣ Email ID\n"
                     "3️⃣ Place\n"
@@ -58,15 +65,23 @@ def webhook():
                 payload = {
                     "messaging_product": "whatsapp",
                     "to": sender,
+                    "type": "text",
                     "text": {
                         "body": reply
                     }
                 }
 
-                requests.post(url, headers=headers, json=payload)
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    json=payload
+                )
+
+                print("Status Code:", response.status_code)
+                print("Response:", response.text)
 
         except Exception as e:
-            print(e)
+            print("ERROR:", str(e))
 
         return "EVENT_RECEIVED", 200
 
