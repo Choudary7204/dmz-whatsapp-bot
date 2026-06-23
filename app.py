@@ -4,9 +4,9 @@ import os
 
 app = Flask(__name__)
 
-VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
-ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
-PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 
 
 @app.route("/")
@@ -17,7 +17,6 @@ def home():
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
 
-    # Verification
     if request.method == "GET":
         mode = request.args.get("hub.mode")
         token = request.args.get("hub.verify_token")
@@ -25,43 +24,51 @@ def webhook():
 
         if mode == "subscribe" and token == VERIFY_TOKEN:
             return challenge, 200
-
         return "Verification failed", 403
 
-    # Incoming messages
     if request.method == "POST":
         data = request.get_json()
+        print(data)
 
         try:
-            message = data["entry"][0]["changes"][0]["value"]["messages"][0]
-            sender = message["from"]
+            value = data["entry"][0]["changes"][0]["value"]
 
-            send_message(sender, "Hello 👋 Welcome to DMZ AI Bot!")
+            if "messages" in value:
+                sender = value["messages"][0]["from"]
+                text = value["messages"][0]["text"]["body"]
+
+                reply = (
+                    "Hi 👋\n\n"
+                    "Thanks for contacting DataMentorZen 🚀\n\n"
+                    "Please share:\n"
+                    "1️⃣ Name\n"
+                    "2️⃣ Email ID\n"
+                    "3️⃣ Place\n"
+                    "4️⃣ Student / Working Professional\n"
+                    "5️⃣ Current course / field"
+                )
+
+                url = f"https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/messages"
+
+                headers = {
+                    "Authorization": f"Bearer {ACCESS_TOKEN}",
+                    "Content-Type": "application/json"
+                }
+
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "to": sender,
+                    "text": {
+                        "body": reply
+                    }
+                }
+
+                requests.post(url, headers=headers, json=payload)
 
         except Exception as e:
             print(e)
 
-        return "OK", 200
-
-
-def send_message(recipient, text):
-    url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
-
-    headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": recipient,
-        "type": "text",
-        "text": {
-            "body": text
-        }
-    }
-
-    requests.post(url, headers=headers, json=payload)
+        return "EVENT_RECEIVED", 200
 
 
 if __name__ == "__main__":
